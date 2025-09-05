@@ -1,97 +1,165 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Frame.io Clone - React Native App
 
-# Getting Started
+## 🚀 Complete Setup Guide
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+### Prerequisites
+- Node.js (v16 or higher)
+- React Native CLI
+- Android Studio with Android SDK
+- Java 11
 
-## Step 1: Start Metro
+### 1. Project Creation & Setup
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+```bash
+# Create new React Native project
+npx react-native init FrameioClone --version 0.72.0
+cd FrameioClone
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+# Install all dependencies
+npm install react-native-video react-native-svg react-native-gesture-handler react-native-vector-icons @react-navigation/native @react-navigation/stack react-native-screens react-native-safe-area-context @react-native-async-storage/async-storage
 
-```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+# For iOS (if needed)
+cd ios && pod install && cd ..
 ```
 
-## Step 2: Build and run your app
+### 2. Folder Structure Creation
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```bash
+# Create all required folders and files
+mkdir -p src/components src/screens src/utils src/hooks
+touch src/components/{VideoPlayer,CommentsList,DrawingTool,TimestampComment}.js
+touch src/screens/{HomeScreen,VideoReviewScreen}.js
+touch src/utils/{storage,constants}.js
+touch src/hooks/{useComments,useDrawing}.js
 ```
 
-### iOS
+### 3. Android Configuration
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+#### AndroidManifest.xml Location: `android/app/src/main/AndroidManifest.xml`
+Replace the content with the provided AndroidManifest.xml
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+#### Vector Icons Setup
+```bash
+# Link vector icons (for React Native < 0.60)
+react-native link react-native-vector-icons
 
-```sh
-bundle install
+# For manual linking, add to android/app/build.gradle:
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 ```
 
-Then, and every time you update your native dependencies, run:
+### 4. File Implementation
 
-```sh
-bundle exec pod install
+Copy all the provided component files into their respective locations:
+
+- `App.js` (root)
+- `src/screens/HomeScreen.js`
+- `src/screens/VideoReviewScreen.js`
+- `src/components/VideoPlayer.js`
+- `src/components/CommentsList.js`
+- `src/components/DrawingTool.js`
+- `src/components/TimestampComment.js`
+- `src/hooks/useComments.js`
+- `src/hooks/useDrawing.js`
+- `src/utils/storage.js`
+- `src/utils/constants.js`
+
+### 5. Build APK
+
+```bash
+# For development build
+npx react-native run-android
+
+# For release APK
+cd android
+./gradlew assembleRelease
+
+# APK will be generated at:
+# android/app/build/outputs/apk/release/app-release.apk
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+### 6. Key Features Implemented
 
-```sh
-# Using npm
-npm run ios
+✅ **Video Playback**
+- Custom video player with play/pause controls
+- Seek bar for navigation
+- Time display and progress tracking
 
-# OR using Yarn
-yarn ios
+✅ **Timestamp-based Comments**
+- Add comments at specific video timestamps
+- View all comments with timestamp links
+- Click comment to jump to that time
+- Local storage persistence
+
+✅ **Drawing Tool**
+- Freehand drawing over video
+- Color picker for drawing tools
+- SVG-based drawing implementation
+- Drawing persistence with timestamps
+
+✅ **Local Storage**
+- AsyncStorage for data persistence
+- Comments and drawings saved locally
+- App state restoration on restart
+
+### 7. Technical Choices Explained
+
+**React Native Video**: Used for robust video playback with extensive controls and customization options.
+
+**AsyncStorage**: Chosen for local data persistence - simple, reliable, and perfect for this use case without backend.
+
+**React Native SVG**: Implemented for drawing functionality - provides smooth, scalable drawing experience with path-based rendering.
+
+**React Navigation**: Stack navigation for smooth screen transitions and professional app flow.
+
+**Custom Hooks**: Created useComments and useDrawing hooks for clean state management and reusable logic.
+
+**Gesture Handler**: Used for smooth drawing interactions and touch handling.
+
+### 8. App Flow
+
+1. **Home Screen**: Welcome screen with feature overview and start button
+2. **Video Review Screen**: Main interface with video player, drawing tools, and comment system
+3. **Drawing Mode**: Toggle drawing overlay with color selection
+4. **Comment System**: Modal-based comment input with timestamp association
+5. **Comments List**: Scrollable list showing all comments with navigation
+
+### 9. APK Generation Commands
+
+```bash
+# Clean and build release APK
+cd android
+./gradlew clean
+./gradlew assembleRelease
+
+# Install release APK on connected device
+./gradlew installRelease
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+### 10. Testing Features
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+- Load video and test play/pause functionality
+- Add comments at different timestamps
+- Test drawing with different colors
+- Verify data persistence by closing and reopening app
+- Test comment navigation by clicking on comments
 
-## Step 3: Modify your app
+## 📱 Design Implementation
 
-Now that you have successfully run the app, let's make changes!
+The app follows the Frame.io design principles with:
+- Clean, modern UI with Material Design elements
+- Intuitive navigation and controls
+- Professional color scheme (primary: #6366f1)
+- Responsive layout for different screen sizes
+- Smooth animations and transitions
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## 🔧 Troubleshooting
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+**Video not playing**: Ensure network permissions and check video URL accessibility
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+**Drawing not working**: Verify gesture-handler is properly linked and configured
 
-## Congratulations! :tada:
+**Storage issues**: Check AsyncStorage permissions and implementation
 
-You've successfully run and modified your React Native App. :partying_face:
+**Build errors**: Ensure all dependencies are properly installed and linked
 
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+This implementation provides a complete Frame.io-style video review application with all requested features working seamlessly on Android devices.

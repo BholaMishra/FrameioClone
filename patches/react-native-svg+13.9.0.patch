@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RNSVGRenderableManager.java b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RNSVGRenderableManager.java
+index 712c4f2..0e50800 100644
+--- a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RNSVGRenderableManager.java
++++ b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RNSVGRenderableManager.java
+@@ -8,7 +8,7 @@
+ 
+ package com.horcrux.svg;
+ 
+-import static com.facebook.react.common.StandardCharsets.UTF_8;
++import java.nio.charset.StandardCharsets;
+ 
+ import android.content.res.Resources;
+ import android.graphics.Matrix;
