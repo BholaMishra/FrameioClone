@@ -10,214 +10,204 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const CommentsList = ({comments, onSeekTo, currentTime, onReplyComment}) => {
+const CommentsSection = ({
+  comments,
+  onSeekTo,
+  currentTime,
+  onAddComment,
+  onReplyComment
+}) => {
+  const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState('');
 
-  const formatTimestamp = (seconds) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatTimeAgo = (dateString) => {
+    const now = new Date();
+    const commentDate = new Date(dateString);
+    const diffInMinutes = Math.floor((now - commentDate) / (1000 * 60));
     
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
   };
 
-  const isCurrentComment = (timestamp) => {
-    return Math.abs(currentTime - timestamp) < 2;
-  };
-
-  const handleReply = (commentId) => {
-    setReplyingTo(commentId);
-    setReplyText('');
-  };
-
-  const submitReply = (parentCommentId, parentTimestamp) => {
-    if (replyText.trim()) {
-      const replyData = {
-        id: Date.now().toString(),
-        text: replyText.trim(),
-        timestamp: parentTimestamp,
-        parentCommentId: parentCommentId,
+  const handleAddComment = () => {
+    if (newComment.trim()) {
+      onAddComment({
+        text: newComment.trim(),
+        timestamp: currentTime,
         user: {
-          name: 'Current User',
-          avatar: 'https://ui-avatars.com/api/?name=Current+User&background=10b981&color=fff&size=128',
+          name: 'You',
+          avatar: 'https://ui-avatars.com/api/?name=You&background=6366f1&color=fff',
         },
         createdAt: new Date().toISOString(),
-        isReply: true,
-      };
-      
-      onReplyComment(replyData);
-      setReplyingTo(null);
-      setReplyText('');
+        id: Date.now().toString(),
+      });
+      setNewComment('');
     }
   };
 
-  const cancelReply = () => {
-    setReplyingTo(null);
-    setReplyText('');
+  const handleReply = (comment) => {
+    if (replyText.trim()) {
+      onReplyComment({
+        text: replyText.trim(),
+        parentId: comment.id,
+        timestamp: comment.timestamp,
+        user: {
+          name: 'You',
+          avatar: 'https://ui-avatars.com/api/?name=You&background=10b981&color=fff',
+        },
+        createdAt: new Date().toISOString(),
+        id: Date.now().toString(),
+        isReply: true,
+      });
+      setReplyText('');
+      setReplyingTo(null);
+    }
   };
 
-  const getReplies = (commentId) => {
-    return comments.filter(comment => comment.parentCommentId === commentId);
-  };
+  const renderComment = ({item, index}) => {
+    const isAnchored = item.isAnchored;
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.user?.name || 'User')}&background=6366f1&color=fff`;
 
-  const getMainComments = () => {
-    return comments.filter(comment => !comment.isReply);
-  };
-
-  const renderReply = (reply) => (
-    <View key={reply.id} style={styles.replyItem}>
-      <View style={styles.replyLine} />
-      <View style={styles.replyContent}>
-        <View style={styles.commentHeader}>
-          <Image 
-            source={{uri: reply.user?.avatar || 'https://ui-avatars.com/api/?name=User&background=6b7280&color=fff'}} 
-            style={styles.replyAvatar}
-          />
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{reply.user?.name || 'Anonymous'}</Text>
-            <Text style={styles.replyDate}>
-              {new Date(reply.createdAt).toLocaleDateString()} at{' '}
-              {new Date(reply.createdAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.replyText}>{reply.text}</Text>
-      </View>
-    </View>
-  );
-
-  const renderCommentItem = ({item, index}) => {
-    if (item.isReply) return null; // Skip replies, they're rendered with their parent
-    
-    const isActive = isCurrentComment(item.timestamp);
-    const replies = getReplies(item.id);
-    const isReplying = replyingTo === item.id;
-    
     return (
-      <View style={[styles.commentContainer, isActive && styles.activeCommentContainer]}>
+      <View style={[styles.commentItem, item.isReply && styles.replyItem]}>
         <TouchableOpacity
-          style={[styles.commentItem, isActive && styles.activeCommentItem]}
+          style={styles.timestampBadge}
           onPress={() => onSeekTo(item.timestamp)}>
-          
+          <Text style={styles.timestampText}>
+            {formatTime(item.timestamp)}
+          </Text>
+          {isAnchored && (
+            <View style={[styles.anchorDot, {backgroundColor: item.color}]} />
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.commentContent}>
           <View style={styles.commentHeader}>
-            <Image 
-              source={{uri: item.user?.avatar || 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff'}} 
+            <Image
+              source={{uri: item.user?.avatar || defaultAvatar}}
               style={styles.avatar}
             />
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{item.user?.name || 'Anonymous'}</Text>
-              <View style={styles.timestampContainer}>
-                <Icon name="access-time" size={16} color="#6b7280" />
-                <Text style={styles.timestampText}>
-                  {formatTimestamp(item.timestamp)}
-                </Text>
-                <Text style={styles.commentIndex}>#{index + 1}</Text>
-              </View>
+              <Text style={styles.timeAgo}>{formatTimeAgo(item.createdAt)}</Text>
             </View>
+            <TouchableOpacity style={styles.moreButton}>
+              <Icon name="more-horiz" size={20} color="#999" />
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.commentText}>{item.text}</Text>
-          
-          <View style={styles.commentFooter}>
-            <Text style={styles.commentDate}>
-              {new Date(item.createdAt).toLocaleDateString()} at{' '}
-              {new Date(item.createdAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-            <TouchableOpacity 
+
+          <View style={styles.commentActions}>
+            <TouchableOpacity
               style={styles.replyButton}
-              onPress={() => handleReply(item.id)}>
-              <Icon name="reply" size={16} color="#6366f1" />
+              onPress={() => setReplyingTo(replyingTo === item.id ? null : item.id)}>
+              <Icon name="reply" size={16} color="#666" />
               <Text style={styles.replyButtonText}>Reply</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
 
-        {/* Render replies */}
-        {replies.length > 0 && (
-          <View style={styles.repliesContainer}>
-            {replies.map(reply => renderReply(reply))}
-          </View>
-        )}
-
-        {/* Reply input */}
-        {isReplying && (
-          <View style={styles.replyInputContainer}>
-            <View style={styles.replyInputHeader}>
-              <Text style={styles.replyInputLabel}>Replying to {item.user?.name}</Text>
-              <TouchableOpacity onPress={cancelReply}>
-                <Icon name="close" size={20} color="#6b7280" />
-              </TouchableOpacity>
+          {replyingTo === item.id && (
+            <View style={styles.replyInput}>
+              <TextInput
+                style={styles.replyTextInput}
+                placeholder="Write a reply..."
+                value={replyText}
+                onChangeText={setReplyText}
+                multiline
+              />
+              <View style={styles.replyActions}>
+                <TouchableOpacity
+                  style={styles.replyCancel}
+                  onPress={() => setReplyingTo(null)}>
+                  <Text style={styles.replyCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.replySubmit,
+                    !replyText.trim() && styles.disabledButton
+                  ]}
+                  onPress={() => handleReply(item)}
+                  disabled={!replyText.trim()}>
+                  <Text style={styles.replySubmitText}>Reply</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <TextInput
-              style={styles.replyInput}
-              placeholder="Write your reply..."
-              value={replyText}
-              onChangeText={setReplyText}
-              multiline={true}
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-            <View style={styles.replyInputActions}>
-              <TouchableOpacity
-                style={styles.cancelReplyButton}
-                onPress={cancelReply}>
-                <Text style={styles.cancelReplyText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.submitReplyButton, !replyText.trim() && styles.disabledButton]}
-                onPress={() => submitReply(item.id, item.timestamp)}
-                disabled={!replyText.trim()}>
-                <Icon name="send" size={16} color="#ffffff" />
-                <Text style={styles.submitReplyText}>Reply</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+          )}
+        </View>
       </View>
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Icon name="comment" size={48} color="#d1d5db" />
-      <Text style={styles.emptyStateText}>No comments yet</Text>
-      <Text style={styles.emptyStateSubtext}>
-        Tap the comment button while watching to add your first comment
-      </Text>
+  const renderCommentInput = () => (
+    <View style={styles.commentInputSection}>
+      <Image
+        source={{uri: 'https://ui-avatars.com/api/?name=You&background=6366f1&color=fff'}}
+        style={styles.inputAvatar}
+      />
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.commentInput}
+          placeholder="Write your comment here"
+          value={newComment}
+          onChangeText={setNewComment}
+          multiline
+        />
+        <View style={styles.inputActions}>
+          <View style={styles.inputTools}>
+            <TouchableOpacity style={styles.inputTool}>
+              <Icon name="access-time" size={16} color="#666" />
+              <Text style={styles.inputToolText}>{formatTime(currentTime)}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.inputTool}>
+              <Icon name="edit" size={16} color="#666" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.colorTool}>
+              <View style={styles.redDot} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.colorTool}>
+              <View style={styles.greenDot} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.commentButton,
+              !newComment.trim() && styles.disabledButton
+            ]}
+            onPress={handleAddComment}
+            disabled={!newComment.trim()}>
+            <Text style={styles.commentButtonText}>Comment</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
-
-  const mainComments = getMainComments();
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerText}>Comments ({comments.length})</Text>
-          <Text style={styles.headerSubtext}>{mainComments.length} comments</Text>
-        </View>
-        <Icon name="chat-bubble-outline" size={20} color="#6366f1" />
+        <Text style={styles.headerText}>Comments</Text>
+        <Text style={styles.commentCount}>{comments.length}</Text>
       </View>
-      
+
       <FlatList
-        data={mainComments}
-        renderItem={renderCommentItem}
+        data={comments}
+        renderItem={renderComment}
         keyExtractor={(item) => item.id}
-        style={styles.list}
-        contentContainerStyle={mainComments.length === 0 ? styles.emptyContainer : styles.listContent}
-        ListEmptyComponent={renderEmptyState}
+        style={styles.commentsList}
         showsVerticalScrollIndicator={false}
       />
+
+      {renderCommentInput()}
     </View>
   );
 };
@@ -229,82 +219,62 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    backgroundColor: '#f9fafb',
-  },
-  headerLeft: {
-    flex: 1,
+    borderBottomColor: '#f0f0f0',
   },
   headerText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#374151',
-  },
-  headerSubtext: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingBottom: 16,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 48,
-  },
-  emptyStateText: {
-    fontSize: 18,
     fontWeight: '600',
-    color: '#9ca3af',
-    marginTop: 16,
+    color: '#333',
   },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#d1d5db',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
+  commentCount: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#666',
   },
-  commentContainer: {
-    marginHorizontal: 12,
-    marginVertical: 6,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  activeCommentContainer: {
-    shadowColor: '#6366f1',
-    shadowOpacity: 0.3,
-    elevation: 4,
+  commentsList: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
   commentItem: {
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
   },
-  activeCommentItem: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#6366f1',
-    borderWidth: 2,
+  replyItem: {
+    marginLeft: 40,
+    paddingLeft: 16,
+    borderLeftWidth: 2,
+    borderLeftColor: '#e0e0e0',
+  },
+  timestampBadge: {
+    backgroundColor: '#f0f8f0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  timestampText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2d5a2d',
+  },
+  anchorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 6,
+  },
+  commentContent: {
+    flex: 1,
+    marginLeft: 12,
   },
   commentHeader: {
     flexDirection: 'row',
@@ -312,160 +282,160 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 12,
-  },
-  replyAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    marginRight: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   userInfo: {
     flex: 1,
+    marginLeft: 8,
   },
   userName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 2,
+    color: '#333',
   },
-  timestampContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timestampText: {
+  timeAgo: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6366f1',
-    marginLeft: 4,
-    marginRight: 8,
+    color: '#999',
   },
-  commentIndex: {
-    fontSize: 12,
-    color: '#9ca3af',
-    fontWeight: '500',
+  moreButton: {
+    padding: 4,
   },
   commentText: {
-    fontSize: 16,
-    color: '#374151',
-    lineHeight: 22,
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
     marginBottom: 8,
   },
-  commentFooter: {
+  commentActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  commentDate: {
-    fontSize: 12,
-    color: '#9ca3af',
   },
   replyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
     paddingVertical: 4,
   },
   replyButtonText: {
-    fontSize: 12,
-    color: '#6366f1',
-    fontWeight: '600',
     marginLeft: 4,
-  },
-  repliesContainer: {
-    marginTop: 8,
-    paddingLeft: 16,
-  },
-  replyItem: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  replyLine: {
-    width: 2,
-    backgroundColor: '#d1d5db',
-    marginRight: 12,
-    marginTop: 8,
-  },
-  replyContent: {
-    flex: 1,
-    padding: 12,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-  },
-  replyText: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-  },
-  replyDate: {
-    fontSize: 10,
-    color: '#9ca3af',
-  },
-  replyInputContainer: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  replyInputHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  replyInputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 12,
+    color: '#666',
   },
   replyInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
-    padding: 10,
-    fontSize: 14,
-    color: '#374151',
-    backgroundColor: '#ffffff',
-    minHeight: 60,
-    textAlignVertical: 'top',
-    marginBottom: 10,
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
   },
-  replyInputActions: {
+  replyTextInput: {
+    fontSize: 14,
+    color: '#333',
+    minHeight: 40,
+    textAlignVertical: 'top',
+  },
+  replyActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    marginTop: 8,
   },
-  cancelReplyButton: {
+  replyCancel: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginRight: 8,
   },
-  cancelReplyText: {
+  replyCancelText: {
     fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '600',
+    color: '#666',
   },
-  submitReplyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  replySubmit: {
+    backgroundColor: '#8B5A2B',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#6366f1',
     borderRadius: 6,
   },
-  disabledButton: {
-    backgroundColor: '#d1d5db',
-  },
-  submitReplyText: {
+  replySubmitText: {
     fontSize: 14,
     color: '#ffffff',
     fontWeight: '600',
+  },
+  commentInputSection: {
+    flexDirection: 'row',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#ffffff',
+  },
+  inputAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginTop: 4,
+  },
+  inputContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  commentInput: {
+    fontSize: 14,
+    color: '#333',
+    minHeight: 40,
+    paddingVertical: 8,
+    textAlignVertical: 'top',
+  },
+  inputActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  inputTools: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputTool: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 4,
+  },
+  inputToolText: {
     marginLeft: 4,
+    fontSize: 12,
+    color: '#666',
+  },
+  colorTool: {
+    marginRight: 8,
+  },
+  redDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ff4444',
+  },
+  greenDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#44ff44',
+  },
+  commentButton: {
+    backgroundColor: '#8B5A2B',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  commentButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
 });
 
-export default CommentsList;
+export default CommentsSection;

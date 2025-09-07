@@ -2,13 +2,16 @@ import {useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const COMMENTS_STORAGE_KEY = '@frameio_comments';
+const ANCHORED_COMMENTS_STORAGE_KEY = '@frameio_anchored_comments';
 
 const useComments = () => {
   const [comments, setComments] = useState([]);
+  const [anchoredComments, setAnchoredComments] = useState([]);
 
   // Load comments from storage on mount
   useEffect(() => {
     loadComments();
+    loadAnchoredComments();
   }, []);
 
   const loadComments = async () => {
@@ -16,17 +19,22 @@ const useComments = () => {
       const storedComments = await AsyncStorage.getItem(COMMENTS_STORAGE_KEY);
       if (storedComments) {
         const parsedComments = JSON.parse(storedComments);
-        // Sort by timestamp and then by creation date
-        const sortedComments = parsedComments.sort((a, b) => {
-          if (a.timestamp !== b.timestamp) {
-            return a.timestamp - b.timestamp;
-          }
-          return new Date(a.createdAt) - new Date(b.createdAt);
-        });
-        setComments(sortedComments);
+        setComments(parsedComments.sort((a, b) => a.timestamp - b.timestamp));
       }
     } catch (error) {
       console.error('Error loading comments:', error);
+    }
+  };
+
+  const loadAnchoredComments = async () => {
+    try {
+      const storedAnchored = await AsyncStorage.getItem(ANCHORED_COMMENTS_STORAGE_KEY);
+      if (storedAnchored) {
+        const parsedAnchored = JSON.parse(storedAnchored);
+        setAnchoredComments(parsedAnchored);
+      }
+    } catch (error) {
+      console.error('Error loading anchored comments:', error);
     }
   };
 
@@ -41,77 +49,80 @@ const useComments = () => {
     }
   };
 
+  const saveAnchoredComments = async (anchoredToSave) => {
+    try {
+      await AsyncStorage.setItem(
+        ANCHORED_COMMENTS_STORAGE_KEY,
+        JSON.stringify(anchoredToSave)
+      );
+    } catch (error) {
+      console.error('Error saving anchored comments:', error);
+    }
+  };
+
   const addComment = (commentData) => {
     const newComment = {
-      id: commentData.id || Date.now().toString(),
+      id: Date.now().toString(),
       timestamp: Math.round(commentData.timestamp),
       text: commentData.text,
-      user: commentData.user || {
-        name: 'Anonymous User',
-        avatar: null,
-      },
-      createdAt: commentData.createdAt || new Date().toISOString(),
-      isReply: false,
+      user: commentData.user,
+      createdAt: new Date().toISOString(),
+      isAnchored: commentData.isAnchored || false,
+      x: commentData.x,
+      y: commentData.y,
+      color: commentData.color,
     };
 
-    const updatedComments = [...comments, newComment].sort((a, b) => {
-      if (a.timestamp !== b.timestamp) {
-        return a.timestamp - b.timestamp;
-      }
-      return new Date(a.createdAt) - new Date(b.createdAt);
-    });
+    const updatedComments = [...comments, newComment].sort(
+      (a, b) => a.timestamp - b.timestamp
+    );
 
     setComments(updatedComments);
     saveComments(updatedComments);
+
+    // If it's an anchored comment, also add to anchored comments
+    if (commentData.isAnchored) {
+      const updatedAnchored = [...anchoredComments, newComment];
+      setAnchoredComments(updatedAnchored);
+      saveAnchoredComments(updatedAnchored);
+    }
   };
 
   const addReply = (replyData) => {
     const newReply = {
-      id: replyData.id || Date.now().toString(),
+      id: Date.now().toString(),
       timestamp: Math.round(replyData.timestamp),
       text: replyData.text,
-      user: replyData.user || {
-        name: 'Anonymous User',
-        avatar: null,
-      },
-      createdAt: replyData.createdAt || new Date().toISOString(),
+      user: replyData.user,
+      createdAt: new Date().toISOString(),
       isReply: true,
-      parentCommentId: replyData.parentCommentId,
+      parentId: replyData.parentId,
     };
 
-    const updatedComments = [...comments, newReply].sort((a, b) => {
-      if (a.timestamp !== b.timestamp) {
-        return a.timestamp - b.timestamp;
-      }
-      // If timestamps are equal, show parent comments before replies
-      if (a.isReply !== b.isReply) {
-        return a.isReply ? 1 : -1;
-      }
-      return new Date(a.createdAt) - new Date(b.createdAt);
-    });
+    const updatedComments = [...comments, newReply].sort(
+      (a, b) => a.timestamp - b.timestamp
+    );
 
     setComments(updatedComments);
     saveComments(updatedComments);
   };
 
   const removeComment = (commentId) => {
-    // Remove comment and all its replies
-    const updatedComments = comments.filter(
-      comment => comment.id !== commentId && comment.parentCommentId !== commentId
-    );
+    const updatedComments = comments.filter(comment => comment.id !== commentId);
     setComments(updatedComments);
     saveComments(updatedComments);
-  };
 
-  const removeReply = (replyId) => {
-    const updatedComments = comments.filter(comment => comment.id !== replyId);
-    setComments(updatedComments);
-    saveComments(updatedComments);
+    // Also remove from anchored if it exists
+    const updatedAnchored = anchoredComments.filter(comment => comment.id !== commentId);
+    setAnchoredComments(updatedAnchored);
+    saveAnchoredComments(updatedAnchored);
   };
 
   const clearAllComments = () => {
     setComments([]);
+    setAnchoredComments([]);
     AsyncStorage.removeItem(COMMENTS_STORAGE_KEY);
+    AsyncStorage.removeItem(ANCHORED_COMMENTS_STORAGE_KEY);
   };
 
   const getCommentsForTimestamp = (timestamp, tolerance = 2) => {
@@ -120,57 +131,21 @@ const useComments = () => {
     );
   };
 
-  const getRepliesForComment = (commentId) => {
-    return comments.filter(
-      comment => comment.parentCommentId === commentId
+  const getAnchoredCommentsForTimestamp = (timestamp, tolerance = 2) => {
+    return anchoredComments.filter(
+      comment => Math.abs(comment.timestamp - timestamp) <= tolerance
     );
-  };
-
-  const getCommentWithReplies = (commentId) => {
-    const comment = comments.find(c => c.id === commentId);
-    const replies = getRepliesForComment(commentId);
-    return {
-      comment,
-      replies,
-    };
-  };
-
-  const updateComment = (commentId, updates) => {
-    const updatedComments = comments.map(comment => 
-      comment.id === commentId 
-        ? { ...comment, ...updates, updatedAt: new Date().toISOString() }
-        : comment
-    );
-    setComments(updatedComments);
-    saveComments(updatedComments);
-  };
-
-  // Statistics
-  const getCommentsStats = () => {
-    const totalComments = comments.filter(c => !c.isReply).length;
-    const totalReplies = comments.filter(c => c.isReply).length;
-    const uniqueTimestamps = new Set(comments.map(c => Math.floor(c.timestamp))).size;
-    
-    return {
-      totalComments,
-      totalReplies,
-      totalInteractions: totalComments + totalReplies,
-      uniqueTimestamps,
-    };
   };
 
   return {
     comments,
+    anchoredComments,
     addComment,
     addReply,
     removeComment,
-    removeReply,
-    updateComment,
     clearAllComments,
     getCommentsForTimestamp,
-    getRepliesForComment,
-    getCommentWithReplies,
-    getCommentsStats,
+    getAnchoredCommentsForTimestamp,
     reloadComments: loadComments,
   };
 };
